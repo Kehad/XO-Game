@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { PlayerType, GameMode, Difficulty } from './types';
+import type { DataConnection } from 'peerjs';
+import { destroyPeer } from './api/peer';
 import { calculateWinner, getBestMove } from './utils';
 import { Board } from './components/Board';
 import { GameStatus } from './components/GameStatus';
 import { Scoreboard } from './components/Scoreboard';
+import OnlineMultiplayer from './components/mode/OnlineMutliplayer';
 
 function App() {
   const [gameMode, setGameMode] = useState<GameMode>(null);
@@ -15,6 +18,8 @@ function App() {
   const [playerXName, setPlayerXName] = useState('');
   const [playerOName, setPlayerOName] = useState('');
   const [scores, setScores] = useState({ X: 0, O: 0, Draws: 0 });
+  const [peerConnection, setPeerConnection] = useState<DataConnection | null>(null);
+  const [isOnlineHost, setIsOnlineHost] = useState(false);
 
   const { winner, line: winningLine } = calculateWinner(board);
 
@@ -31,11 +36,17 @@ function App() {
     if (gameMode === 'offline_computer' && !xIsNext) return;
 
     if (gameMode === 'online_multiplayer') {
-      alert('Online multiplayer is under construction! Playing locally for now.');
+      const myTurn = isOnlineHost ? xIsNext : !xIsNext;
+      if (!myTurn) return;
     }
 
     const newBoard = [...board];
     newBoard[index] = xIsNext ? 'X' : 'O';
+
+    if (gameMode === 'online_multiplayer' && peerConnection) {
+      peerConnection.send({ type: 'move', board: newBoard, xIsNext: !xIsNext });
+    }
+
     setBoard(newBoard);
     setXIsNext(!xIsNext);
   };
@@ -58,7 +69,9 @@ function App() {
   const resetGame = () => {
     setBoard(Array(9).fill(null));
     setScores({ X: 0, O: 0, Draws: 0 });
-  
+    if (gameMode === 'online_multiplayer' && peerConnection) {
+      peerConnection.send({ type: 'reset', scores: { X: 0, O: 0, Draws: 0 } });
+    }
   };
   const newGame = () => {
     setBoard(Array(9).fill(null));
@@ -66,6 +79,10 @@ function App() {
       const nextStarter = startingPlayer === 'X' ? 'O' : 'X';
       setStartingPlayer(nextStarter);
       setXIsNext(nextStarter === 'X');
+
+      if (gameMode === 'online_multiplayer' && peerConnection) {
+        peerConnection.send({ type: 'newGame', startingPlayer: nextStarter, xIsNext: nextStarter === 'X' });
+      }
     } else {
       setStartingPlayer('X');
       setXIsNext(true);
@@ -95,6 +112,11 @@ function App() {
     setStartingPlayer('X');
     setXIsNext(true);
     setScores({ X: 0, O: 0, Draws: 0 });
+    if (peerConnection) {
+      peerConnection.close();
+      setPeerConnection(null);
+      destroyPeer();
+    }
   };
 
   if (showDifficultyMenu) {
@@ -209,20 +231,53 @@ function App() {
     );
   }
 
-  if (gameMode === 'online_multiplayer') {
+  const handleOnlineConnected = (conn: DataConnection, isHost: boolean, oppName: string, myName: string) => {
+    setPeerConnection(conn);
+    setIsOnlineHost(isHost);
+
+    if (isHost) {
+      setPlayerXName(myName);
+      setPlayerOName(oppName);
+      setStartingPlayer('X');
+      setXIsNext(true);
+    } else {
+      // Guest joins, Host is X, Guest is O
+      setPlayerOName(myName);
+      setPlayerXName(oppName);
+      setStartingPlayer('X');
+      setXIsNext(true);
+    }
+    setBoard(Array(9).fill(null));
+    setScores({ X: 0, O: 0, Draws: 0 });
+
+    conn.on('data', (data: any) => {
+      if (data.type === 'move') {
+        setBoard(data.board);
+        setXIsNext(data.xIsNext);
+      } else if (data.type === 'reset') {
+        setBoard(Array(9).fill(null));
+        setScores(data.scores);
+      } else if (data.type === 'newGame') {
+        setBoard(Array(9).fill(null));
+        setStartingPlayer(data.startingPlayer);
+        setXIsNext(data.xIsNext);
+      }
+    });
+
+    conn.on('close', () => {
+      alert('Opponent disconnected!');
+      goBackToMenu();
+    });
+
+    conn.on('error', () => {
+      alert('Connection lost!');
+      goBackToMenu();
+    });
+  };
+
+  if (gameMode === 'online_multiplayer' && !peerConnection) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4">
-        <div className="max-w-md w-full flex flex-col items-center gap-8 text-center bg-gray-800/80 p-8 rounded-3xl border border-gray-700 shadow-2xl">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Online Multiplayer</h2>
-          <p className="text-gray-300">This feature requires a backend server and is currently under construction. Stay tuned!</p>
-          <button
-            onClick={goBackToMenu}
-            className="mt-4 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-full transition-all active:scale-95"
-          >
-            Go Back
-          </button>
-        </div>
-      </div>
+      <OnlineMultiplayer goBack={goBackToMenu} onConnected={handleOnlineConnected} />
     );
   }
 
@@ -278,22 +333,22 @@ function App() {
         {/* Controls */}
         <div className="flex gap-4 flex-row">
 
-        <button
-          onClick={resetGame}
-          className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full sm:w-auto text-lg flex items-center justify-center gap-2 group"
-        >
-          <svg className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-          Restart Game
-        </button>
-        <button
-          onClick={newGame}
-          className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full sm:w-auto text-lg flex items-center justify-center gap-2 group"
-        >
-          <svg className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-          New Game
-        </button>
-      </div>
+          <button
+            onClick={resetGame}
+            className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full sm:w-auto text-lg flex items-center justify-center gap-2 group"
+          >
+            <svg className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            Restart Game
+          </button>
+          <button
+            onClick={newGame}
+            className="mt-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 w-full sm:w-auto text-lg flex items-center justify-center gap-2 group"
+          >
+            <svg className="w-5 h-5 group-hover:-rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            New Game
+          </button>
         </div>
+      </div>
 
 
       <style>{`

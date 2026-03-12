@@ -1,0 +1,13 @@
+{
+    "name": "xo-game-backend",
+    "version": "1.0.0",
+    "description": "PeerJS signaling server for XO Game",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "peer": "latest"
+    }
+}
