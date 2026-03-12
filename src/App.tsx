@@ -3,6 +3,7 @@ import type { PlayerType, GameMode, Difficulty } from './types';
 import { calculateWinner, getBestMove } from './utils';
 import { Board } from './components/Board';
 import { GameStatus } from './components/GameStatus';
+import { Scoreboard } from './components/Scoreboard';
 
 function App() {
   const [gameMode, setGameMode] = useState<GameMode>(null);
@@ -11,9 +12,18 @@ function App() {
   const [board, setBoard] = useState<PlayerType[]>(Array(9).fill(null));
   const [xIsNext, setXIsNext] = useState<boolean>(true);
   const [playerXName, setPlayerXName] = useState('');
-  const [playerOName, setPlayerOName] = useState('');
+  const [playerOName] = useState('');
+  const [scores, setScores] = useState({ X: 0, O: 0, Draws: 0 });
 
   const { winner, line: winningLine } = calculateWinner(board);
+
+  useEffect(() => {
+    if (winner) {
+      if (winner === 'X') setScores(s => ({ ...s, X: s.X + 1 }));
+      else if (winner === 'O') setScores(s => ({ ...s, O: s.O + 1 }));
+      else if (winner === 'Draw') setScores(s => ({ ...s, Draws: s.Draws + 1 }));
+    }
+  }, [winner]);
 
   const handleClick = (index: number) => {
     if (board[index] || winner) return;
@@ -53,6 +63,7 @@ function App() {
     setGameMode(null);
     setShowDifficultyMenu(false);
     resetGame();
+    setScores({ X: 0, O: 0, Draws: 0 });
   };
 
   if (showDifficultyMenu) {
@@ -93,7 +104,7 @@ function App() {
               className="bg-green-600/20 hover:bg-green-600/40 border border-green-500/50 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               🌱 Easy Mode
-            </button> 
+            </button>
             <button
               onClick={() => { setDifficulty('medium'); setGameMode('offline_computer'); setShowDifficultyMenu(false); }}
               className="bg-yellow-600/20 hover:bg-yellow-600/40 border border-yellow-500/50 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
@@ -219,6 +230,13 @@ function App() {
             ) : 'Local Multiplayer'}
           </p>
         </div>
+
+        <Scoreboard
+          scores={scores}
+          playerXName={playerXName}
+          playerOName={playerOName}
+          isVsComputer={gameMode === 'offline_computer'}
+        />
 
         <GameStatus
           winner={winner}
