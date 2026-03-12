@@ -11,6 +11,7 @@ function App() {
   const [showDifficultyMenu, setShowDifficultyMenu] = useState(false);
   const [board, setBoard] = useState<PlayerType[]>(Array(9).fill(null));
   const [xIsNext, setXIsNext] = useState<boolean>(true);
+  const [startingPlayer, setStartingPlayer] = useState<'X' | 'O'>('X');
   const [playerXName, setPlayerXName] = useState('');
   const [playerOName, setPlayerOName] = useState('');
   const [scores, setScores] = useState({ X: 0, O: 0, Draws: 0 });
@@ -56,13 +57,38 @@ function App() {
 
   const resetGame = () => {
     setBoard(Array(9).fill(null));
-    setXIsNext(true);
+    if (gameMode === 'offline_multiplayer') {
+      const nextStarter = startingPlayer === 'X' ? 'O' : 'X';
+      setStartingPlayer(nextStarter);
+      setXIsNext(nextStarter === 'X');
+    } else {
+      setStartingPlayer('X');
+      setXIsNext(true);
+    }
+  };
+
+  const startGame = (mode: GameMode, diff?: Difficulty) => {
+    setGameMode(mode);
+    if (diff) setDifficulty(diff);
+    setShowDifficultyMenu(false);
+
+    let firstPlayer: 'X' | 'O' = 'X';
+    if (mode === 'offline_multiplayer') {
+      firstPlayer = Math.random() < 0.5 ? 'X' : 'O';
+    }
+
+    setStartingPlayer(firstPlayer);
+    setXIsNext(firstPlayer === 'X');
+    setBoard(Array(9).fill(null));
+    setScores({ X: 0, O: 0, Draws: 0 });
   };
 
   const goBackToMenu = () => {
     setGameMode(null);
     setShowDifficultyMenu(false);
-    resetGame();
+    setBoard(Array(9).fill(null));
+    setStartingPlayer('X');
+    setXIsNext(true);
     setScores({ X: 0, O: 0, Draws: 0 });
   };
 
@@ -92,19 +118,19 @@ function App() {
 
           <div className="flex flex-col gap-4 w-full px-4">
             <button
-              onClick={() => { setDifficulty('easy'); setGameMode('offline_computer'); setShowDifficultyMenu(false); }}
+              onClick={() => startGame('offline_computer', 'easy')}
               className="bg-green-600/20 hover:bg-green-600/40 border border-green-500/50 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               🌱 Easy Mode
             </button>
             <button
-              onClick={() => { setDifficulty('medium'); setGameMode('offline_computer'); setShowDifficultyMenu(false); }}
+              onClick={() => startGame('offline_computer', 'medium')}
               className="bg-yellow-600/20 hover:bg-yellow-600/40 border border-yellow-500/50 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               ⚖️ Medium Mode
             </button>
             <button
-              onClick={() => { setDifficulty('hard'); setGameMode('offline_computer'); setShowDifficultyMenu(false); }}
+              onClick={() => startGame('offline_computer', 'hard')}
               className="bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               🔥 Hard (Unbeatable)
@@ -161,13 +187,13 @@ function App() {
               🤖 Play vs Computer
             </button>
             <button
-              onClick={() => setGameMode('offline_multiplayer')}
+              onClick={() => startGame('offline_multiplayer')}
               className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               👥 Local Multiplayer
             </button>
             <button
-              onClick={() => setGameMode('online_multiplayer')}
+              onClick={() => startGame('online_multiplayer')}
               className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
             >
               🌐 Online Multiplayer
