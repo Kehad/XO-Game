@@ -7,7 +7,7 @@ interface ScoreboardProps {
 
 export function Scoreboard({ scores, playerXName, playerOName, isVsComputer }: ScoreboardProps) {
     const xName = playerXName?.trim() ? playerXName.trim() : 'Player X';
-    const oName = playerOName?.trim() ? playerOName.trim() : isVsComputer ? 'Computer' : 'Player O';
+    const oName = isVsComputer ? 'Computer' : playerOName?.trim() ? playerOName.trim() : 'Player O';
 
     return (
         <div className="flex justify-center gap-3 w-full mb-2">

@@ -10,7 +10,7 @@ interface GameStatusProps {
 
 export function GameStatus({ winner, xIsNext, playerXName, playerOName, isVsComputer }: GameStatusProps) {
     const xName = playerXName?.trim() ? `${playerXName.trim()} (X)` : 'X';
-    const oName = playerOName?.trim() ? `${playerOName.trim()} (O)` : isVsComputer ? 'Computer (O)' : 'O';
+    const oName = isVsComputer ? 'Computer (O)' : playerOName?.trim() ? `${playerOName.trim()} (O)` : 'O';
 
     const winnerName = winner === 'X' ? xName : oName;
     const winnerColor = winner === 'X' ? 'text-cyan-400' : 'text-pink-400';

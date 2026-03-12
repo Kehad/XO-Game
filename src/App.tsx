@@ -12,7 +12,7 @@ function App() {
   const [board, setBoard] = useState<PlayerType[]>(Array(9).fill(null));
   const [xIsNext, setXIsNext] = useState<boolean>(true);
   const [playerXName, setPlayerXName] = useState('');
-  const [playerOName] = useState('');
+  const [playerOName, setPlayerOName] = useState('');
   const [scores, setScores] = useState({ X: 0, O: 0, Draws: 0 });
 
   const { winner, line: winningLine } = calculateWinner(board);
@@ -79,23 +79,15 @@ function App() {
             </p>
           </div>
 
-          <div className="w-full flex flex-col sm:flex-row gap-4 px-4 mb-2">
+          <div className="w-full flex justify-center px-4 mb-2">
             <input
               type="text"
               placeholder="Player X Name (Optional)"
               value={playerXName}
               onChange={(e) => setPlayerXName(e.target.value)}
               maxLength={15}
-              className="w-full sm:w-1/2 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-center sm:text-left"
+              className="w-full sm:w-3/4 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-center"
             />
-            {/* <input
-              type="text"
-              placeholder="Player O Name (Optional)"
-              value={playerOName}
-              onChange={(e) => setPlayerOName(e.target.value)}
-              maxLength={15}
-              className="w-full sm:w-1/2 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all text-center sm:text-left"
-            /> */}
           </div>
 
           <div className="flex flex-col gap-4 w-full px-4">
@@ -142,7 +134,7 @@ function App() {
             </p>
           </div>
 
-          {/* <div className="w-full flex flex-col sm:flex-row gap-4 px-4 mb-2">
+          <div className="w-full flex flex-col sm:flex-row gap-4 px-4 mb-2">
             <input
               type="text"
               placeholder="Player X Name (Optional)"
@@ -159,7 +151,7 @@ function App() {
               maxLength={15}
               className="w-full sm:w-1/2 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all text-center sm:text-left"
             />
-          </div> */}
+          </div>
 
           <div className="flex flex-col gap-4 w-full px-4">
             <button
