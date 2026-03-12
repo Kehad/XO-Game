@@ -8,6 +8,9 @@
         "start": "node index.js"
     },
     "dependencies": {
-        "peer": "latest"
+        "cors": "^2.8.6",
+        "express": "^5.2.1",
+        "peer": "latest",
+        "socket.io": "^4.8.3"
     }
 }

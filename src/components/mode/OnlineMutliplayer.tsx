@@ -1,21 +1,23 @@
 import { useState, useEffect } from "react";
-import { initializePeer, destroyPeer } from "../../api/peer";
-import type { DataConnection } from "peerjs";
+import { initializeSocket, destroySocket } from "../../api/socket";
+import type { Socket } from "socket.io-client";
+import AlertModal from "../alert";
 
 interface Props {
     goBack: () => void;
-    onConnected: (connection: DataConnection, isHost: boolean, opponentName: string, myName: string) => void;
+    onConnected: (socket: Socket, isHost: boolean, opponentName: string, myName: string, roomCode: string) => void;
 }
 
 const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
     const [view, setView] = useState<'menu' | 'create' | 'join' | 'waiting'>('menu');
     const [roomCode, setRoomCode] = useState('');
-    const [playerName, setPlayerName] = useState('');
+    const [playerName, setPlayerName] = useState('create');
     const [isHost, setIsHost] = useState(false);
     const [error, setError] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
 
     useEffect(() => {
-        return () => destroyPeer();
+        return () => destroySocket();
     }, []);
 
     const generateRoomCode = () => {
@@ -25,7 +27,31 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
     const handleCancel = () => {
         setView('menu');
         setError('');
-        destroyPeer();
+        destroySocket();
+    };
+
+    const setupSocketEvents = (socket: Socket, currentRoomCode: string, iAmHost: boolean) => {
+        socket.on('player_joined', (data) => {
+            // I am the host, a guest joined
+            if (iAmHost) {
+                // Send info to guest
+                socket.emit('player_info', { roomCode: currentRoomCode, name: playerName });
+                onConnected(socket, true, data.name, playerName, currentRoomCode);
+            }
+        });
+
+        socket.on('player_info', (data) => {
+            // I am the guest, got host's info
+            if (!iAmHost) {
+                onConnected(socket, false, data.name, playerName, currentRoomCode);
+            }
+        });
+
+        socket.on('connect_error', (err) => {
+            setError('Connection error: ' + err.message);
+            setView(iAmHost ? 'create' : 'join');
+            destroySocket();
+        });
     };
 
     const handleCreate = () => {
@@ -39,28 +65,12 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
         setIsHost(true);
         setView('waiting');
 
-        const peer = initializePeer(code);
-
-        peer.on('open', (id) => {
-            console.log('Host peer created with ID:', id);
+        const socket = initializeSocket();
+        socket.once('connect', () => {
+            socket.emit('join_room', { roomCode: code, name: playerName, isHost: true });
         });
 
-        peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                conn.send({ type: 'handshake', name: playerName });
-            });
-            conn.on('data', (data: any) => {
-                if (data?.type === 'handshake') {
-                    onConnected(conn, true, data.name, playerName);
-                }
-            });
-        });
-
-        peer.on('error', (err) => {
-            setError('Connection error: ' + err.message);
-            setView('create');
-            destroyPeer();
-        });
+        setupSocketEvents(socket, code, true);
     };
 
     const handleJoin = () => {
@@ -76,30 +86,12 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
         setIsHost(false);
         setView('waiting');
 
-        const peer = initializePeer();
-
-        peer.on('open', () => {
-            const conn = peer.connect(roomCode);
-            conn.on('open', () => {
-                conn.send({ type: 'handshake', name: playerName });
-            });
-            conn.on('data', (data: any) => {
-                if (data?.type === 'handshake') {
-                    onConnected(conn, false, data.name, playerName);
-                }
-            });
-            conn.on('error', (err) => {
-                setError('Connection failed: ' + err.message);
-                setView('join');
-                destroyPeer();
-            });
+        const socket = initializeSocket();
+        socket.once('connect', () => {
+            socket.emit('join_room', { roomCode: roomCode, name: playerName, isHost: false });
         });
 
-        peer.on('error', (err) => {
-            setError('Error: ' + err.message);
-            setView('join');
-            destroyPeer();
-        });
+        setupSocketEvents(socket, roomCode, false);
     };
 
     return (
@@ -218,7 +210,7 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(roomCode);
-                                            alert("Room code copied to clipboard!");
+                                            setAlertMessage("Room code copied to clipboard!");
                                         }}
                                         className="p-4 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-2xl transition-all text-blue-400 hover:text-white group active:scale-95"
                                         title="Copy to clipboard"
@@ -258,6 +250,10 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
                     </div>
                 )}
             </div>
+
+            {alertMessage && (
+                <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} />
+            )}
         </div>
     );
 };

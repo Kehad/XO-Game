@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { PlayerType, GameMode, Difficulty } from './types';
-import type { DataConnection } from 'peerjs';
-import { destroyPeer } from './api/peer';
+import type { Socket } from 'socket.io-client';
+import { destroySocket } from './api/socket';
 import { calculateWinner, getBestMove } from './utils';
 import { Board } from './components/Board';
 import { GameStatus } from './components/GameStatus';
 import { Scoreboard } from './components/Scoreboard';
 import OnlineMultiplayer from './components/mode/OnlineMutliplayer';
+import AlertModal from './components/alert';
 
 function App() {
   const [gameMode, setGameMode] = useState<GameMode>(null);
@@ -18,8 +19,10 @@ function App() {
   const [playerXName, setPlayerXName] = useState('');
   const [playerOName, setPlayerOName] = useState('');
   const [scores, setScores] = useState({ X: 0, O: 0, Draws: 0 });
-  const [peerConnection, setPeerConnection] = useState<DataConnection | null>(null);
+  const [socketConnection, setSocketConnection] = useState<Socket | null>(null);
+  const [roomCode, setRoomCode] = useState('');
   const [isOnlineHost, setIsOnlineHost] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
 
   const { winner, line: winningLine } = calculateWinner(board);
 
@@ -43,8 +46,8 @@ function App() {
     const newBoard = [...board];
     newBoard[index] = xIsNext ? 'X' : 'O';
 
-    if (gameMode === 'online_multiplayer' && peerConnection) {
-      peerConnection.send({ type: 'move', board: newBoard, xIsNext: !xIsNext });
+    if (gameMode === 'online_multiplayer' && socketConnection) {
+      socketConnection.emit('move', { board: newBoard, xIsNext: !xIsNext, roomCode });
     }
 
     setBoard(newBoard);
@@ -69,8 +72,8 @@ function App() {
   const resetGame = () => {
     setBoard(Array(9).fill(null));
     setScores({ X: 0, O: 0, Draws: 0 });
-    if (gameMode === 'online_multiplayer' && peerConnection) {
-      peerConnection.send({ type: 'reset', scores: { X: 0, O: 0, Draws: 0 } });
+    if (gameMode === 'online_multiplayer' && socketConnection) {
+      socketConnection.emit('reset', { scores: { X: 0, O: 0, Draws: 0 }, roomCode });
     }
   };
   const newGame = () => {
@@ -80,8 +83,8 @@ function App() {
       setStartingPlayer(nextStarter);
       setXIsNext(nextStarter === 'X');
 
-      if (gameMode === 'online_multiplayer' && peerConnection) {
-        peerConnection.send({ type: 'newGame', startingPlayer: nextStarter, xIsNext: nextStarter === 'X' });
+      if (gameMode === 'online_multiplayer' && socketConnection) {
+        socketConnection.emit('newGame', { startingPlayer: nextStarter, xIsNext: nextStarter === 'X', roomCode });
       }
     } else {
       setStartingPlayer('X');
@@ -112,10 +115,10 @@ function App() {
     setStartingPlayer('X');
     setXIsNext(true);
     setScores({ X: 0, O: 0, Draws: 0 });
-    if (peerConnection) {
-      peerConnection.close();
-      setPeerConnection(null);
-      destroyPeer();
+    if (socketConnection) {
+      destroySocket();
+      setSocketConnection(null);
+      setRoomCode('');
     }
   };
 
@@ -231,9 +234,10 @@ function App() {
     );
   }
 
-  const handleOnlineConnected = (conn: DataConnection, isHost: boolean, oppName: string, myName: string) => {
-    setPeerConnection(conn);
+  const handleOnlineConnected = (conn: Socket, isHost: boolean, oppName: string, myName: string, code: string) => {
+    setSocketConnection(conn);
     setIsOnlineHost(isHost);
+    setRoomCode(code);
 
     if (isHost) {
       setPlayerXName(myName);
@@ -250,32 +254,34 @@ function App() {
     setBoard(Array(9).fill(null));
     setScores({ X: 0, O: 0, Draws: 0 });
 
-    conn.on('data', (data: any) => {
-      if (data.type === 'move') {
-        setBoard(data.board);
-        setXIsNext(data.xIsNext);
-      } else if (data.type === 'reset') {
-        setBoard(Array(9).fill(null));
-        setScores(data.scores);
-      } else if (data.type === 'newGame') {
-        setBoard(Array(9).fill(null));
-        setStartingPlayer(data.startingPlayer);
-        setXIsNext(data.xIsNext);
-      }
+    conn.on('move', (data: any) => {
+      setBoard(data.board);
+      setXIsNext(data.xIsNext);
     });
 
-    conn.on('close', () => {
-      alert('Opponent disconnected!');
+    conn.on('reset', (data: any) => {
+      setBoard(Array(9).fill(null));
+      setScores(data.scores);
+    });
+
+    conn.on('newGame', (data: any) => {
+      setBoard(Array(9).fill(null));
+      setStartingPlayer(data.startingPlayer);
+      setXIsNext(data.xIsNext);
+    });
+
+    conn.on('opponent_disconnected', () => {
+      setAlertMessage('Opponent disconnected!');
       goBackToMenu();
     });
 
-    conn.on('error', () => {
-      alert('Connection lost!');
+    conn.on('disconnect', () => {
+      setAlertMessage('Connection lost to server!');
       goBackToMenu();
     });
   };
 
-  if (gameMode === 'online_multiplayer' && !peerConnection) {
+  if (gameMode === 'online_multiplayer' && !socketConnection) {
     return (
       <OnlineMultiplayer goBack={goBackToMenu} onConnected={handleOnlineConnected} />
     );
@@ -308,6 +314,10 @@ function App() {
             ) : 'Local Multiplayer'}
           </p>
         </div>
+
+        {alertMessage && (
+          <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} type="error" title="Disconnected" />
+        )}
 
         <Scoreboard
           scores={scores}
