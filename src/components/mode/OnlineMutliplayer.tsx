@@ -66,7 +66,7 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
         setView('waiting');
 
         const socket = initializeSocket();
-        socket.once('connect', () => {
+        socket.once('connection', () => {
             socket.emit('join_room', { roomCode: code, name: playerName, isHost: true });
         });
 
@@ -252,7 +252,7 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
             </div>
 
             {alertMessage && (
-                <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} />
+                <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} type="success" title="Copied!" />
             )}
         </div>
     );
