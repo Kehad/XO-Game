@@ -6,6 +6,4 @@ export interface GameState {
     board: PlayerType[];
     currentPlayer: PlayerType;
     winner: PlayerType | 'draw' | null;
-    isGameOver: boolean;
-    isXNext: boolean;
 }
