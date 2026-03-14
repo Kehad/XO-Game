@@ -4,6 +4,5 @@ export type Difficulty = 'easy' | 'medium' | 'hard' | null;
 
 export interface GameState {
     board: PlayerType[];
-    currentPlayer: PlayerType;
     winner: PlayerType | 'draw' | null;
 }
