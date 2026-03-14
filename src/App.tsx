@@ -272,12 +272,12 @@ function App() {
 
     conn.on('opponent_disconnected', () => {
       setAlertMessage('Opponent disconnected!');
-      goBackToMenu();
+      // goBackToMenu();
     });
 
     conn.on('disconnect', () => {
       setAlertMessage('Connection lost to server!');
-      goBackToMenu();
+      // goBackToMenu();
     });
   };
 
