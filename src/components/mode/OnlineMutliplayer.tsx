@@ -30,76 +30,72 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
         destroySocket();
     };
 
-   const setupSocketEvents = (socket: Socket, currentRoomCode: string, iAmHost: boolean) => {
-    
-    socket.on('player_joined', (data) => {
-        // I am the host, a guest just joined my room
-        if (iAmHost) {
-            // Send my name back to the guest so they know who I am
-            socket.emit('player_info', { 
-                roomCode: currentRoomCode, 
-                name: playerName 
-            });
-            
-            // Trigger the transition to the Game Board
-            onConnected(socket, true, data.name, playerName, currentRoomCode);
-        }
-    });
+    const setupSocketEvents = (socket: Socket, currentRoomCode: string, iAmHost: boolean, nameToUse: string) => {
+        // Clear old listeners to prevent "double moves" or duplicate events
+        socket.off('player_joined');
+        socket.off('player_info');
 
-    socket.on('player_info', (data) => {
-        // I am the guest, the host just sent me their name
-        if (!iAmHost) {
-            onConnected(socket, false, data.name, playerName, currentRoomCode);
-        }
-    });
+        socket.on('player_joined', (data) => {
+            if (iAmHost) {
+                // Use the passed nameToUse, not the state variable directly
+                socket.emit('player_info', {
+                    roomCode: currentRoomCode,
+                    name: nameToUse
+                });
+                onConnected(socket, true, data.name, nameToUse, currentRoomCode);
+            }
+        });
 
-    socket.on('connect_error', (err) => {
-        setError('Connection error: ' + err.message);
-        setView('menu');
-        destroySocket();
-    });
-};
+        socket.on('player_info', (data) => {
+            if (!iAmHost) {
+                onConnected(socket, false, data.name, nameToUse, currentRoomCode);
+            }
+        });
 
+        socket.on('connect_error', (err) => {
+            setError('Connection error. Is the server running?');
+            setView('menu');
+            destroySocket();
+        });
+    };
+
+    const socket = initializeSocket();
     const handleCreate = () => {
-        if (!playerName.trim()) {
-            setError('Please enter your name');
-            return;
-        }
+        const trimmedName = playerName.trim();
+        if (!trimmedName) return setError('Please enter your name');
+
         setError('');
         const code = generateRoomCode();
         setRoomCode(code);
         setIsHost(true);
         setView('waiting');
 
-        const socket = initializeSocket();
-        socket.once('connect', () => {
-            socket.emit('join_room', { roomCode: code, name: playerName, isHost: true });
-        });
 
-        setupSocketEvents(socket, code, true);
+        // IMPORTANT: Setup events BEFORE emitting join_room
+        setupSocketEvents(socket, code, true, trimmedName);
+
+        socket.on('connect', () => {
+            socket.emit('join_room', { roomCode: code, name: trimmedName, isHost: true });
+        });
     };
 
     const handleJoin = () => {
-        if (!playerName.trim()) {
-            setError('Please enter your name');
-            return;
-        }
-        if (!roomCode.trim() || roomCode.length < 6) {
-            setError('Please enter a valid 6-character room code');
-            return;
-        }
+        const trimmedName = playerName.trim();
+        if (!trimmedName) return setError('Please enter your name');
+        if (roomCode.length < 6) return setError('Invalid code');
+
         setError('');
         setIsHost(false);
         setView('waiting');
 
         const socket = initializeSocket();
-        socket.once('connect', () => {
-            socket.emit('join_room', { roomCode: roomCode, name: playerName, isHost: false });
+
+        setupSocketEvents(socket, roomCode, false, trimmedName);
+
+        socket.on('connect', () => {
+            socket.emit('join_room', { roomCode: roomCode, name: trimmedName, isHost: false });
         });
-
-        setupSocketEvents(socket, roomCode, false);
     };
-
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center font-sans p-4 selection:bg-cyan-500/30">
             <button
@@ -257,9 +253,9 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
                 )}
             </div>
 
-            {alertMessage && (
+            {/* {alertMessage && (
                 <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} type="success" title="Copied!" />
-            )}
+            )} */}
         </div>
     );
 };

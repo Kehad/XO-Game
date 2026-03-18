@@ -23,6 +23,7 @@ io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         const { roomCode, name, isHost } = data;
         socket.join(roomCode);
+        console.log(data);
         console.log(`${name} ${isHost ? 'created' : 'joined'} room: ${roomCode}`);
 
         // Notify the room that a player joined (specifically useful for host to know guest joined)
