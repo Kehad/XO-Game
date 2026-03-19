@@ -31,35 +31,35 @@ const OnlineMultiplayer = ({ goBack, onConnected }: Props) => {
         destroySocket();
     };
 
-   const setupSocketEvents = (socket: Socket, currentRoomCode: string, iAmHost: boolean) => {
-    
-    socket.on('player_joined', (data) => {
-        // I am the host, a guest just joined my room
-        if (iAmHost) {
-            // Send my name back to the guest so they know who I am
-            socket.emit('player_info', { 
-                roomCode: currentRoomCode, 
-                name: playerName 
-            });
-            
-            // Trigger the transition to the Game Board
-            onConnected(socket, true, data.name, playerName, currentRoomCode);
-        }
-    });
+    const setupSocketEvents = (socket: Socket, currentRoomCode: string, iAmHost: boolean) => {
 
-    socket.on('player_info', (data) => {
-        // I am the guest, the host just sent me their name
-        if (!iAmHost) {
-            onConnected(socket, false, data.name, playerName, currentRoomCode);
-        }
-    });
+        socket.on('player_joined', (data) => {
+            // I am the host, a guest just joined my room
+            if (iAmHost) {
+                // Send my name back to the guest so they know who I am
+                socket.emit('player_info', {
+                    roomCode: currentRoomCode,
+                    name: playerName
+                });
 
-    socket.on('connect_error', (err) => {
-        setError('Connection error: ' + err.message);
-        setView('menu');
-        destroySocket();
-    });
-};
+                // Trigger the transition to the Game Board
+                onConnected(socket, true, data.name, playerName, currentRoomCode);
+            }
+        });
+
+        socket.on('player_info', (data) => {
+            // I am the guest, the host just sent me their name
+            if (!iAmHost) {
+                onConnected(socket, false, data.name, playerName, currentRoomCode);
+            }
+        });
+
+        socket.on('connect_error', (err) => {
+            setError('Connection error: ' + err.message);
+            setView('menu');
+            destroySocket();
+        });
+    };
 
     const handleCreate = () => {
         if (!playerName.trim()) {

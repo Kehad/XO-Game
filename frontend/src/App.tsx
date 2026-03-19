@@ -5,7 +5,7 @@ import { calculateWinner, getBestMove } from './utils';
 import { Board } from './components/Board';
 import { GameStatus } from './components/GameStatus';
 import { Scoreboard } from './components/Scoreboard';
-import { destroySocket } from '../api/socket';
+import { destroySocket } from '../../api/socket';
 import OnlineMultiplayer from './components/mode/OnlineMultiplayer';
 import AlertModal from './components/alert';
 
