@@ -7,6 +7,7 @@ import { destroySocket } from '../api/socket';
 import { MainMenu } from '../components/MainMenu';
 import { DifficultyMenu } from '../components/DifficultyMenu';
 import { GameScreen } from '../components/GameScreen';
+import OnlineMultiplayer from '../components/mode/OnlineMultiplayer';
 
 export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>(null);
@@ -68,12 +69,49 @@ export default function App() {
     }
   }, [board, xIsNext, gameMode, winner, difficulty]);
 
-  useEffect(() => {
-    if (gameMode === 'online_multiplayer' && !socketConnection) {
-      setAlertMessage("Online mode is not ready yet.");
-      goBackToMenu();
+  const handleOnlineConnected = (conn: Socket, isHost: boolean, oppName: string, myName: string, code: string) => {
+    setSocketConnection(conn);
+    setIsOnlineHost(isHost);
+    setRoomCode(code);
+
+    if (isHost) {
+      setPlayerXName(myName);
+      setPlayerOName(oppName);
+      setStartingPlayer('X');
+      setXIsNext(true);
+    } else {
+      setPlayerOName(myName);
+      setPlayerXName(oppName);
+      setStartingPlayer('X');
+      setXIsNext(true);
     }
-  }, [gameMode, socketConnection]);
+    setBoard(Array(9).fill(null));
+    setScores({ X: 0, O: 0, Draws: 0 });
+
+    conn.on('move', (data: any) => {
+      setBoard(data.board);
+      setXIsNext(data.xIsNext);
+    });
+
+    conn.on('reset', (data: any) => {
+      setBoard(Array(9).fill(null));
+      setScores(data.scores);
+    });
+
+    conn.on('newGame', (data: any) => {
+      setBoard(Array(9).fill(null));
+      setStartingPlayer(data.startingPlayer);
+      setXIsNext(data.xIsNext);
+    });
+
+    conn.on('opponent_disconnected', () => {
+      setAlertMessage('Opponent disconnected!');
+    });
+
+    conn.on('disconnect', () => {
+      setAlertMessage('Connection lost to server!');
+    });
+  };
 
   const resetGame = () => {
     setBoard(Array(9).fill(null));
@@ -152,6 +190,12 @@ export default function App() {
         alertMessage={alertMessage}
         setAlertMessage={setAlertMessage}
       />
+    );
+  }
+
+  if (gameMode === 'online_multiplayer' && !socketConnection) {
+    return (
+      <OnlineMultiplayer goBack={goBackToMenu} onConnected={handleOnlineConnected} />
     );
   }
 
