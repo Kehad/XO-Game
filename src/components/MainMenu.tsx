@@ -1,5 +1,6 @@
 "use client";
 import type { GameMode } from '../types';
+import Image from 'next/image';
 import AlertModal from './alert';
 
 interface MainMenuProps {
@@ -25,9 +26,10 @@ export function MainMenu({
         <AlertModal alertMessage={alertMessage} setAlertMessage={setAlertMessage} type="info" title="Not Ready" />
       )}
       <div className="max-w-md w-full flex flex-col items-center gap-8">
-        <div className="text-center space-y-2 mb-4">
+        <div className="text-center flex flex-col items-center space-y-2 mb-4">
+          <Image src="/logo.png" alt="XO Game Logo" width={150} height={150} className="mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)] rounded-3xl" />
           <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent drop-shadow-lg">
-            Tic Tac Toe
+            XO Game
           </h1>
           <p className="text-gray-400 font-medium tracking-wide uppercase text-sm">
             Select Game Mode
