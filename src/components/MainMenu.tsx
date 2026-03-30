@@ -67,7 +67,9 @@ export function MainMenu({
             👥 Local Multiplayer
           </button>
           <button
-            onClick={() => startGame('online_multiplayer')}
+          // onClick={() => startGame('online_multiplayer')} 
+          // // Uncomment to enable online multiplayer
+            onClick={() => setAlertMessage('Online mode is not ready yet.')}
             className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-200 active:scale-95 text-xl flex items-center justify-center gap-3"
           >
             🌐 Online Multiplayer
